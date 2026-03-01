@@ -1,0 +1,29 @@
+# Dipendenze Composer
+/vendor/
+
+# Configurazione (generata dall'installer - contiene credenziali!)
+/config/config.php
+
+# Dati caricati
+/uploads/
+
+# Backup locali
+/backups/
+
+# Log
+/logs/
+
+# Lock file installer
+/install/installed.lock
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# PHP
+*.log
+error_log
