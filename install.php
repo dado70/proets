@@ -370,7 +370,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     /* Associa utente ad azienda */
                     $pdo->prepare(
-                        "INSERT INTO user_companies (user_id, company_id, ruolo) VALUES (?, ?, 'superadmin')"
+                        "INSERT INTO user_companies (user_id, company_id, ruolo_azienda) VALUES (?, ?, 'admin')"
                     )->execute([$userId, $companyId]);
                     $log[] = ['ok'=>true, 'msg'=>"Amministratore associato all'azienda"];
 
