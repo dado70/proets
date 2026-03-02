@@ -1,0 +1,33 @@
+# ProETS — Apache configuration
+# Richiede mod_rewrite abilitato (AllowOverride All nel VirtualHost)
+Options -Indexes -MultiViews
+
+# Blocca accesso diretto a directory sensibili
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^.*(src|templates|config|install|logs|backups|vendor)">
+        Require all denied
+    </DirectoryMatch>
+</IfModule>
+
+# Blocca file sensibili per estensione
+<FilesMatch "\.(sql|log|lock|env|ini|cfg|md|json|lock)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Permetti accesso diretto all'installer
+    RewriteRule ^install\.php$ - [L]
+
+    # Blocca accesso diretto a cartelle sensibili
+    RewriteRule ^(src|templates|config|install|logs|backups|vendor)(/|$) - [F,L]
+
+    # Permetti file e directory reali (CSS, JS, immagini, ecc.)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Tutto il resto viene gestito dall'applicazione
+    RewriteRule ^(.*)$ index.php [L,QSA]
+</IfModule>

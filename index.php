@@ -6,17 +6,17 @@
  */
 declare(strict_types=1);
 
-define('PROETS_ROOT', dirname(__DIR__));
+define('PROETS_ROOT', __DIR__);
 define('PROETS_START', microtime(true));
 
 // Blocca accesso se non configurato → redirect a installer
 $configFile = PROETS_ROOT . '/config/config.php';
 if (!file_exists($configFile)) {
-    header('Location: /install/');
+    header('Location: install.php');
     exit;
 }
 
-// Autoload
+// Autoload Composer
 $autoload = PROETS_ROOT . '/vendor/autoload.php';
 if (file_exists($autoload)) {
     require $autoload;

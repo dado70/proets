@@ -8,3 +8,14 @@
 
 # Note personali
 readme-dado.md
+
+# Cartelle generate a runtime (non in git)
+config/
+uploads/
+logs/
+backups/
+vendor/
+composer.lock
+
+# Vecchia struttura (rimossa)
+proets/

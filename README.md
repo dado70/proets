@@ -55,7 +55,7 @@ git clone https://github.com/dado70/proets.git
 
 ### 2. Posiziona i file sul server
 
-L'applicazione supporta tre configurazioni:
+Copia **tutto il contenuto** della cartella scaricata nella root del web server (o nella sottocartella desiderata).
 
 | Scenario | Dove caricare i file | URL risultante |
 |---|---|---|
@@ -63,28 +63,22 @@ L'applicazione supporta tre configurazioni:
 | **Sottocartella** | `public_html/proets/` | `https://www.tuodominio.it/proets/` |
 | **Sottodominio** | `public_html/gestionale/` (con subdomain puntato lì) | `https://gestionale.tuodominio.it/` |
 
-In tutti i casi devono essere presenti nella stessa directory:
+Nella directory caricata devono essere presenti almeno:
 ```
 install.php
-proets/
+index.php
+.htaccess
+src/
+templates/
+install/
 ```
 
 ---
 
-### 3. Crea le cartelle necessarie
-
-```bash
-cd /percorso/installazione/proets
-mkdir -p config uploads/loghi logs backups
-chmod 755 config uploads logs backups
-```
-
----
-
-### 4. Prepara il database
+### 3. Prepara il database
 
 #### Hosting condiviso / cPanel / Plesk
-Crea database e utente dal pannello di controllo del tuo hosting, quindi annotare:
+Crea database e utente dal pannello di controllo del tuo hosting, quindi annota:
 - Host (quasi sempre `localhost`)
 - Nome database
 - Utente database
@@ -95,16 +89,16 @@ L'installer crea database e utente automaticamente — ti servirà solo la passw
 
 ---
 
-### 5. Esegui l'installer web
+### 4. Esegui l'installer web
 
 Apri nel browser: `https://tuo-dominio/install.php`
 
 **Step 1 — Requisiti di sistema**
-Verifica che tutti i requisiti obbligatori siano soddisfatti. In caso contrario, installa le estensioni PHP mancanti.
+Verifica che tutti i requisiti obbligatori siano soddisfatti. Le cartelle `config/`, `uploads/`, `logs/`, `backups/` vengono create automaticamente dall'installer. In caso di errori sulle estensioni PHP, contatta il supporto del tuo hosting.
 
 **Step 2 — Configurazione Database**
 Scegli la modalità:
-- *Hosting condiviso* → inserisci le credenziali già create al punto 4
+- *Hosting condiviso* → inserisci le credenziali già create al punto 3
 - *Server dedicato / VPS* → inserisci le credenziali root per creare DB e utente automaticamente
 
 **Step 3 — Dati Associazione e Amministratore**
@@ -115,15 +109,15 @@ Inserisci ragione sociale, forma giuridica, URL dell'applicazione e i dati del p
 
 **Step 4 — Completamento**
 L'installer crea automaticamente:
-- `proets/config/config.php` con tutte le impostazioni
-- `.htaccess` nella root per il routing Apache
+- `config/config.php` con tutte le impostazioni
+- `.htaccess` aggiornato per il routing Apache
 - Schema del database con 76 causali ETS pre-caricate
 
 Al termine clicca **"Elimina install.php"** per sicurezza.
 
 ---
 
-### 6. Configurazione Apache (se non usi cPanel/Plesk)
+### 5. Configurazione Apache (se non usi cPanel/Plesk)
 
 Verifica che nel VirtualHost sia abilitato `AllowOverride All`:
 
@@ -148,7 +142,7 @@ cd /percorso/installazione
 git pull origin main
 ```
 
-> ⚠️ Non sovrascrivere `proets/config/config.php` — contiene le tue credenziali e impostazioni.
+> ⚠️ Non sovrascrivere `config/config.php` — contiene le tue credenziali e impostazioni.
 
 ---
 
@@ -156,20 +150,22 @@ git pull origin main
 
 ```
 install.php                  ← Installer web (da eliminare dopo l'installazione)
-proets/
-├── public/
-│   └── index.php            ← Entry point applicazione
-├── src/
-│   ├── Core/                ← Framework MVC (Router, Auth, DB, View, Session…)
-│   ├── Controllers/         ← Auth, Dashboard, PrimaNota, Rendiconto, Budget, Soci, Backup, Config
-│   └── Services/            ← Rendiconto, Import, Mailer, Backup, PDF
-├── templates/               ← Template PHP (Bootstrap 5 + Chart.js via CDN)
-├── install/
-│   └── database.sql         ← Schema DB completo con causali ETS pre-caricate
-├── config/                  ← Generata dall'installer (non in git)
-├── uploads/                 ← Loghi e allegati (non in git)
-├── backups/                 ← Backup locali (non in git)
-└── logs/                    ← Log applicazione (non in git)
+index.php                    ← Entry point applicazione
+.htaccess                    ← Routing Apache (generato anche dall'installer)
+composer.json                ← Dipendenze PHP
+src/
+├── bootstrap.php
+├── Core/                    ← Framework MVC (Router, Auth, DB, View, Session…)
+├── Controllers/             ← Auth, Dashboard, PrimaNota, Rendiconto, Budget, Soci, Backup, Config
+└── Services/                ← Rendiconto, Import, Mailer, Backup, PDF
+templates/                   ← Template PHP (Bootstrap 5 + Chart.js via CDN)
+install/
+└── database.sql             ← Schema DB completo con causali ETS pre-caricate
+config/                      ← Generata dall'installer (non in git)
+uploads/                     ← Loghi e allegati (non in git)
+backups/                     ← Backup locali (non in git)
+logs/                        ← Log applicazione (non in git)
+vendor/                      ← Dipendenze Composer (non in git)
 ```
 
 ---
@@ -177,7 +173,7 @@ proets/
 ## Sicurezza post-installazione
 
 - Elimina `install.php` dalla root (o usa il pulsante nell'installer)
-- Verifica che `proets/config/config.php` non sia accessibile via web (il `.htaccess` lo blocca già)
+- Verifica che `config/config.php` non sia accessibile via web (il `.htaccess` lo blocca già)
 - Configura HTTPS con certificato SSL (Let's Encrypt è gratuito)
 - Cambia la password dell'amministratore al primo accesso
 - Configura backup automatici dalla sezione **Backup & Ripristino**

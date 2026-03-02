@@ -1,6 +1,0 @@
-Options -Indexes -MultiViews
-
-# Blocca accesso diretto a file sensibili
-<FilesMatch "\.(sql|log|lock|env|ini|cfg)$">
-    Require all denied
-</FilesMatch>

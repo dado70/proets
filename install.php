@@ -1,7 +1,7 @@
 <?php
 /**
  * ProETS — Installer Autonomo
- * Posizionare questo file e la cartella proets/ nella root del web server.
+ * Posizionare questo file nella root del web server insieme a src/, templates/, install/.
  * Aprire http://server/install.php per avviare l'installazione.
  *
  * Copyright (C) 2025 ProETS — GNU GPL v3
@@ -9,7 +9,7 @@
 declare(strict_types=1);
 
 /* ── Percorsi ─────────────────────────────────────────────────────────── */
-define('PROETS_ROOT',  __DIR__ . '/proets');
+define('PROETS_ROOT',  __DIR__);
 define('INSTALL_LOCK', PROETS_ROOT . '/install/installed.lock');
 define('SQL_SCHEMA',   PROETS_ROOT . '/install/database.sql');
 define('CONFIG_DIR',   PROETS_ROOT . '/config');
@@ -21,21 +21,6 @@ if (file_exists(INSTALL_LOCK) && !isset($_GET['force'])) {
     http_response_code(302);
     header('Location: /');
     exit;
-}
-
-/* ── Verifica presenza cartella proets/ ──────────────────────────────── */
-if (!is_dir(PROETS_ROOT)) {
-    http_response_code(500);
-    die('<!DOCTYPE html><html lang="it"><head><meta charset="UTF-8">
-    <title>Errore</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
-    </head><body class="d-flex align-items-center justify-content-center" style="min-height:100vh;background:#f8f9fa">
-    <div class="card p-5 shadow text-center" style="max-width:500px">
-    <i class="fs-1 text-danger">&#9888;</i>
-    <h4 class="mt-3">Cartella <code>proets/</code> non trovata</h4>
-    <p class="text-muted">Estrai l\'archivio nella root del web server: devono esistere
-    <code>install.php</code> e <code>proets/</code> nella stessa directory.</p>
-    </div></body></html>');
 }
 
 session_start();
@@ -53,20 +38,26 @@ function e(mixed $v): string {
 
 function checkRequirements(): array {
     $p = PROETS_ROOT;
+    // Auto-crea le cartelle necessarie se non esistono
+    foreach (['config','uploads','uploads/loghi','logs','backups'] as $d) {
+        if (!is_dir($p.'/'.$d)) {
+            @mkdir($p.'/'.$d, 0755, true);
+        }
+    }
     $checks = [
-        ['name'=>'PHP >= '.MIN_PHP,                  'req'=>true,  'ok'=>version_compare(PHP_VERSION,MIN_PHP,'>='), 'val'=>PHP_VERSION],
-        ['name'=>'Estensione PDO',                   'req'=>true,  'ok'=>extension_loaded('pdo'),         'val'=>extension_loaded('pdo')        ?'OK':'Mancante'],
-        ['name'=>'Estensione pdo_mysql',             'req'=>true,  'ok'=>extension_loaded('pdo_mysql'),   'val'=>extension_loaded('pdo_mysql')   ?'OK':'Mancante'],
-        ['name'=>'Estensione mbstring',              'req'=>true,  'ok'=>extension_loaded('mbstring'),    'val'=>extension_loaded('mbstring')    ?'OK':'Mancante'],
-        ['name'=>'Estensione openssl',               'req'=>true,  'ok'=>extension_loaded('openssl'),     'val'=>extension_loaded('openssl')     ?'OK':'Mancante'],
-        ['name'=>'Estensione json',                  'req'=>true,  'ok'=>extension_loaded('json'),        'val'=>extension_loaded('json')        ?'OK':'Mancante'],
-        ['name'=>'Estensione zlib (backup gzip)',    'req'=>false, 'ok'=>extension_loaded('zlib'),        'val'=>extension_loaded('zlib')        ?'OK':'Consigliata'],
-        ['name'=>'Estensione curl (backup cloud)',   'req'=>false, 'ok'=>extension_loaded('curl'),        'val'=>extension_loaded('curl')        ?'OK':'Consigliata'],
-        ['name'=>'Schema SQL presente',              'req'=>true,  'ok'=>file_exists(SQL_SCHEMA),         'val'=>file_exists(SQL_SCHEMA)         ?'OK':'Non trovato'],
-        ['name'=>'proets/config/ scrivibile',        'req'=>true,  'ok'=>is_writable($p.'/config'),       'val'=>is_writable($p.'/config')       ?'OK':'Non scrivibile'],
-        ['name'=>'proets/uploads/ scrivibile',       'req'=>true,  'ok'=>is_writable($p.'/uploads'),      'val'=>is_writable($p.'/uploads')      ?'OK':'Non scrivibile'],
-        ['name'=>'proets/logs/ scrivibile',          'req'=>true,  'ok'=>is_writable($p.'/logs'),         'val'=>is_writable($p.'/logs')         ?'OK':'Non scrivibile'],
-        ['name'=>'proets/backups/ scrivibile',       'req'=>true,  'ok'=>is_writable($p.'/backups'),      'val'=>is_writable($p.'/backups')      ?'OK':'Non scrivibile'],
+        ['name'=>'PHP >= '.MIN_PHP,               'req'=>true,  'ok'=>version_compare(PHP_VERSION,MIN_PHP,'>='), 'val'=>PHP_VERSION],
+        ['name'=>'Estensione PDO',                'req'=>true,  'ok'=>extension_loaded('pdo'),         'val'=>extension_loaded('pdo')        ?'OK':'Mancante'],
+        ['name'=>'Estensione pdo_mysql',          'req'=>true,  'ok'=>extension_loaded('pdo_mysql'),   'val'=>extension_loaded('pdo_mysql')   ?'OK':'Mancante'],
+        ['name'=>'Estensione mbstring',           'req'=>true,  'ok'=>extension_loaded('mbstring'),    'val'=>extension_loaded('mbstring')    ?'OK':'Mancante'],
+        ['name'=>'Estensione openssl',            'req'=>true,  'ok'=>extension_loaded('openssl'),     'val'=>extension_loaded('openssl')     ?'OK':'Mancante'],
+        ['name'=>'Estensione json',               'req'=>true,  'ok'=>extension_loaded('json'),        'val'=>extension_loaded('json')        ?'OK':'Mancante'],
+        ['name'=>'Estensione zlib (backup gzip)', 'req'=>false, 'ok'=>extension_loaded('zlib'),        'val'=>extension_loaded('zlib')        ?'OK':'Consigliata'],
+        ['name'=>'Estensione curl (backup cloud)','req'=>false, 'ok'=>extension_loaded('curl'),        'val'=>extension_loaded('curl')        ?'OK':'Consigliata'],
+        ['name'=>'Schema SQL presente',           'req'=>true,  'ok'=>file_exists(SQL_SCHEMA),         'val'=>file_exists(SQL_SCHEMA)         ?'OK':'Non trovato'],
+        ['name'=>'config/ scrivibile',            'req'=>true,  'ok'=>is_writable($p.'/config'),       'val'=>is_writable($p.'/config')       ?'OK':'Non scrivibile'],
+        ['name'=>'uploads/ scrivibile',           'req'=>true,  'ok'=>is_writable($p.'/uploads'),      'val'=>is_writable($p.'/uploads')      ?'OK':'Non scrivibile'],
+        ['name'=>'logs/ scrivibile',              'req'=>true,  'ok'=>is_writable($p.'/logs'),         'val'=>is_writable($p.'/logs')         ?'OK':'Non scrivibile'],
+        ['name'=>'backups/ scrivibile',           'req'=>true,  'ok'=>is_writable($p.'/backups'),      'val'=>is_writable($p.'/backups')      ?'OK':'Non scrivibile'],
     ];
     return $checks;
 }
@@ -180,20 +171,36 @@ function rootHtaccess(): string {
     return <<<'HTACCESS'
 # ProETS — generato dall'installer
 # Richiede mod_rewrite abilitato in Apache (AllowOverride All)
-Options -Indexes
+Options -Indexes -MultiViews
+
+# Blocca accesso diretto a directory e file sensibili
+<IfModule mod_authz_core.c>
+    <DirectoryMatch "^.*(src|templates|config|install|logs|backups|vendor)">
+        Require all denied
+    </DirectoryMatch>
+</IfModule>
+
+# Blocca file sensibili per estensione
+<FilesMatch "\.(sql|log|lock|env|ini|cfg|md|json|lock)$">
+    Require all denied
+</FilesMatch>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
     # Permetti accesso diretto all'installer
     RewriteRule ^install\.php$ - [L]
 
-    # Permetti file statici di proets/public/
-    RewriteRule ^proets/public/ - [L]
+    # Blocca accesso diretto a cartelle sensibili
+    RewriteRule ^(src|templates|config|install|logs|backups|vendor)(/|$) - [F,L]
+
+    # Permetti file e directory reali (CSS, JS, immagini)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
 
     # Tutto il resto viene gestito dall'applicazione
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^(.*)$ proets/public/index.php [L,QSA]
+    RewriteRule ^(.*)$ index.php [L,QSA]
 </IfModule>
 HTACCESS;
 }
@@ -359,9 +366,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $path = PROETS_ROOT . '/' . $d;
                         if (!is_dir($path)) {
                             if (mkdir($path, 0755, true)) {
-                                $log[] = ['ok'=>true,  'msg'=>"Cartella <code>proets/{$d}/</code> creata"];
+                                $log[] = ['ok'=>true,  'msg'=>"Cartella <code>{$d}/</code> creata"];
                             } else {
-                                $log[] = ['ok'=>false, 'msg'=>"Impossibile creare <code>proets/{$d}/</code>"];
+                                $log[] = ['ok'=>false, 'msg'=>"Impossibile creare <code>{$d}/</code>"];
                             }
                         }
                     }
@@ -409,7 +416,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     /* Genera config.php */
                     $appKey = bin2hex(random_bytes(32));
                     if (file_put_contents(CONFIG_FILE, generateConfig($db, $appKey, $appUrl)) !== false) {
-                        $log[] = ['ok'=>true, 'msg'=>"File <code>proets/config/config.php</code> generato"];
+                        $log[] = ['ok'=>true, 'msg'=>"File <code>config/config.php</code> generato"];
                     } else {
                         throw new RuntimeException("Impossibile scrivere config.php");
                     }
