@@ -58,18 +58,18 @@ class Application
         Router::post('/budget/:id/approva',  [BudgetController::class, 'approva']);
         Router::get('/budget/:id/pdf',       [BudgetController::class, 'pdf']);
 
-        // Soci
-        Router::get('/soci',                 [SociController::class, 'index']);
-        Router::any('/soci/nuovo',           [SociController::class, 'create']);
-        Router::any('/soci/:id/modifica',    [SociController::class, 'edit']);
-        Router::get('/soci/:id',             [SociController::class, 'show']);
-        Router::post('/soci/:id/elimina',    [SociController::class, 'delete']);
-        Router::get('/soci/quote',           [SociController::class, 'quote']);
-        Router::any('/soci/quote/genera',    [SociController::class, 'generaQuote']);
-        Router::any('/soci/comunicazioni',   [SociController::class, 'comunicazioni']);
+        // Soci — le route statiche DEVONO precedere quelle con :id
+        Router::get('/soci',                     [SociController::class, 'index']);
+        Router::any('/soci/nuovo',               [SociController::class, 'create']);
+        Router::get('/soci/quote',               [SociController::class, 'quote']);
+        Router::any('/soci/quote/genera',        [SociController::class, 'generaQuote']);
+        Router::any('/soci/comunicazioni',       [SociController::class, 'comunicazioni']);
         Router::any('/soci/comunicazioni/invia', [SociController::class, 'inviaComunicazione']);
-        Router::get('/soci/export',          [SociController::class, 'export']);
-        Router::get('/soci/:id/tessera',     [SociController::class, 'tessera']);
+        Router::get('/soci/export',              [SociController::class, 'export']);
+        Router::any('/soci/:id/modifica',        [SociController::class, 'edit']);
+        Router::post('/soci/:id/elimina',        [SociController::class, 'delete']);
+        Router::get('/soci/:id/tessera',         [SociController::class, 'tessera']);
+        Router::get('/soci/:id',                 [SociController::class, 'show']);
 
         // Link pagamento quota (pubblico - no auth)
         Router::any('/paga/:token',          [SociController::class, 'pagaQuota']);

@@ -1,0 +1,10 @@
+# File di sessione Claude Code
+*.txt
+
+# Documenti e archivi locali
+*.pdf
+*.csv
+*.zip
+
+# Note personali
+readme-dado.md

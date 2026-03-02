@@ -61,7 +61,7 @@ class RendicontoController extends Controller
 
         // Preventivo approvato
         $budget = Database::fetchOne(
-            "SELECT b.*, bv.*
+            "SELECT b.*
              FROM budget b
              WHERE b.company_id = ? AND b.esercizio = ? AND b.stato = 'approvato' LIMIT 1",
             [$cid, $esercizio]

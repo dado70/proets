@@ -11,24 +11,31 @@ class View
      */
     public static function render(string $template, array $data = [], string $layout = 'layout/base'): void
     {
+        $base = Config::get('app.base_path', '');
+        if (!isset($data['base'])) {
+            $data['base'] = $base;
+        }
         extract($data, EXTR_SKIP);
 
         // Cattura il contenuto del template interno
         ob_start();
         $templateFile = PROETS_ROOT . "/templates/{$template}.php";
         if (!file_exists($templateFile)) {
+            ob_end_clean();
             throw new \RuntimeException("Template non trovato: {$template}");
         }
         require $templateFile;
         $content = ob_get_clean();
 
-        // Renderizza il layout con il contenuto
+        // Cattura il layout completo (sidebar inclusa) e applica riscrittura base_path
         $layoutFile = PROETS_ROOT . "/templates/{$layout}.php";
         if (!file_exists($layoutFile)) {
-            echo $content;
+            echo self::applyBasePath($content, $base);
             return;
         }
+        ob_start();
         require $layoutFile;
+        echo self::applyBasePath(ob_get_clean(), $base);
     }
 
     /**
@@ -36,8 +43,30 @@ class View
      */
     public static function renderRaw(string $template, array $data = []): void
     {
+        $base = Config::get('app.base_path', '');
+        if (!isset($data['base'])) {
+            $data['base'] = $base;
+        }
         extract($data, EXTR_SKIP);
+        ob_start();
         require PROETS_ROOT . "/templates/{$template}.php";
+        echo self::applyBasePath(ob_get_clean(), $base);
+    }
+
+    /**
+     * Riscrive i link assoluti nell'HTML aggiungendo il base_path.
+     * Gestisce: href="/", action="/", src="/", location.href='/'
+     */
+    private static function applyBasePath(string $output, string $base): string
+    {
+        if ($base === '') {
+            return $output;
+        }
+        // Attributi HTML: href="/...", action="/...", src="/..." (esclude "//" protocol-relative)
+        $output = preg_replace('/(href|action|src)="\/(?!\/)/', '$1="' . $base . '/', $output);
+        // JS inline: location.href='/...' (es. year selector onchange)
+        $output = preg_replace("/(location\\.href\\s*=\\s*)'\//", "$1'" . $base . "/", $output);
+        return $output;
     }
 
     /**

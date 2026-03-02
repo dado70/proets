@@ -24,9 +24,13 @@ class Router
 
     public static function dispatch(): void
     {
-        $method = $_SERVER['REQUEST_METHOD'];
-        $uri    = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
-        $uri    = rtrim($uri, '/') ?: '/';
+        $method   = $_SERVER['REQUEST_METHOD'];
+        $uri      = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+        $basePath = Config::get('app.base_path', '');
+        if ($basePath !== '' && str_starts_with($uri, $basePath)) {
+            $uri = substr($uri, strlen($basePath));
+        }
+        $uri = rtrim($uri, '/') ?: '/';
 
         foreach (self::$routes as [$routeMethod, $routePath, $handler]) {
             // Controlla metodo
@@ -70,6 +74,12 @@ class Router
 
     public static function redirect(string $url, int $code = 302): never
     {
+        if (str_starts_with($url, '/')) {
+            $base = Config::get('app.base_path', '');
+            if ($base !== '') {
+                $url = $base . $url;
+            }
+        }
         header("Location: {$url}", true, $code);
         exit;
     }

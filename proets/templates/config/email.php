@@ -55,10 +55,10 @@ $sezioniMenu = [
             </div>
             <div class="col-md-4">
               <label class="form-label">Sicurezza</label>
-              <select name="smtp_security" class="form-select">
-                <option value="tls" <?= ($settings['smtp_security']??'tls')==='tls'?'selected':'' ?>>STARTTLS (porta 587)</option>
-                <option value="ssl" <?= ($settings['smtp_security']??'')==='ssl'?'selected':'' ?>>SSL (porta 465)</option>
-                <option value=""    <?= ($settings['smtp_security']??'')==='':'selected':'' ?>>Nessuna</option>
+              <select name="smtp_secure" class="form-select">
+                <option value="tls" <?= ($settings['smtp_secure']??'tls')==='tls'?'selected':'' ?>>STARTTLS (porta 587)</option>
+                <option value="ssl" <?= ($settings['smtp_secure']??'')==='ssl'?'selected':'' ?>>SSL (porta 465)</option>
+                <option value=""    <?= ($settings['smtp_secure']??'')=== ''?'selected':'' ?>>Nessuna</option>
               </select>
             </div>
             <div class="col-md-5">
@@ -75,15 +75,15 @@ $sezioniMenu = [
           <div class="row g-3">
             <div class="col-md-5">
               <label class="form-label">Nome mittente</label>
-              <input type="text" name="mail_from_name" class="form-control" value="<?= $e($settings['mail_from_name'] ?? $company['ragione_sociale'] ?? '') ?>">
+              <input type="text" name="smtp_from_name" class="form-control" value="<?= $e($settings['smtp_from_name'] ?? $company['ragione_sociale'] ?? '') ?>">
             </div>
             <div class="col-md-5">
               <label class="form-label">Email mittente</label>
-              <input type="email" name="mail_from" class="form-control" value="<?= $e($settings['mail_from'] ?? $company['email'] ?? '') ?>">
+              <input type="email" name="smtp_from" class="form-control" value="<?= $e($settings['smtp_from'] ?? $company['email'] ?? '') ?>">
             </div>
             <div class="col-md-5">
               <label class="form-label">Email risposta (Reply-To)</label>
-              <input type="email" name="mail_reply_to" class="form-control" value="<?= $e($settings['mail_reply_to'] ?? '') ?>" placeholder="Lascia vuoto per usare mittente">
+              <input type="email" name="smtp_reply_to" class="form-control" value="<?= $e($settings['smtp_reply_to'] ?? '') ?>" placeholder="Lascia vuoto per usare mittente">
             </div>
           </div>
 
@@ -107,10 +107,10 @@ $sezioniMenu = [
           <tbody>
             <?php foreach ($templates as $t): ?>
             <tr>
-              <td><code><?= $e($t['slug']) ?></code></td>
+              <td><code><?= $e($t['codice']) ?></code></td>
               <td class="small"><?= $e($t['oggetto']) ?></td>
               <td class="text-center">
-                <a href="/configurazione/email/template/<?= $e($t['slug']) ?>" class="btn btn-sm btn-outline-secondary py-0 px-2">
+                <a href="/configurazione/email/template/<?= $e($t['codice']) ?>" class="btn btn-sm btn-outline-secondary py-0 px-2">
                   <i class="bi bi-pencil"></i>
                 </a>
               </td>

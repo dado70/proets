@@ -113,6 +113,13 @@ function parseSql(string $sql): array {
 }
 
 function generateConfig(array $db, string $appKey, string $appUrl): string {
+    // Deriva base_path dal path dell'URL (es. https://domain.it/proets → /proets)
+    $parsed   = parse_url($appUrl);
+    $basePath = rtrim($parsed['path'] ?? '', '/');
+
+    // session.secure = true se HTTPS
+    $isHttps  = str_starts_with($appUrl, 'https://');
+
     $lines = [
         '<?php',
         '/**',
@@ -124,13 +131,14 @@ function generateConfig(array $db, string $appKey, string $appUrl): string {
         '',
         'return [',
         "    'app' => [",
-        "        'name'     => 'ProETS',",
-        "        'version'  => '1.0.0',",
-        "        'key'      => " . var_export($appKey, true) . ',',
-        "        'debug'    => false,",
-        "        'timezone' => 'Europe/Rome',",
-        "        'locale'   => 'it_IT',",
-        "        'url'      => " . var_export(rtrim($appUrl, '/'), true) . ',',
+        "        'name'      => 'ProETS',",
+        "        'version'   => '1.0.0',",
+        "        'key'       => " . var_export($appKey, true) . ',',
+        "        'debug'     => false,",
+        "        'timezone'  => 'Europe/Rome',",
+        "        'locale'    => 'it_IT',",
+        "        'url'       => " . var_export(rtrim($appUrl, '/'), true) . ',',
+        "        'base_path' => " . var_export($basePath, true) . ',',
         "    ],",
         "    'db' => [",
         "        'host'    => " . var_export($db['host'], true) . ',',
@@ -142,7 +150,7 @@ function generateConfig(array $db, string $appKey, string $appUrl): string {
         "    ],",
         "    'session' => [",
         "        'lifetime' => 7200,",
-        "        'secure'   => false,",
+        "        'secure'   => " . ($isHttps ? 'true' : 'false') . ',',
         "        'httponly' => true,",
         "        'samesite' => 'Strict',",
         "    ],",
@@ -199,7 +207,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     /* Autodistruzione file installer */
     if (($_POST['action'] ?? '') === 'self_delete') {
         @unlink(__FILE__);
-        header('Location: /'); exit;
+        // Redirect alla root dell'applicazione (gestisce sia root che sottocartella)
+        $appDir = rtrim(dirname($_SERVER['PHP_SELF'] ?? '/'), '/');
+        header('Location: ' . ($appDir ?: '/'));
+        exit;
     }
 
     $postStep = (int)($_POST['from_step'] ?? 0);
@@ -210,67 +221,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: ' . $_SERVER['PHP_SELF']); exit;
     }
 
-    /* ── STEP 2 → 3 (crea DB e utente con credenziali root) ─────────── */
+    /* ── STEP 2 → 3 (configurazione database) ───────────────────────── */
     if ($postStep === 2) {
-        $rootHost = trim($_POST['root_host'] ?? 'localhost');
-        $rootPort = (int)($_POST['root_port'] ?? 3306);
-        $rootUser = trim($_POST['root_user'] ?? 'root');
-        $rootPass = $_POST['root_pass'] ?? '';
+        $mode     = $_POST['install_mode'] ?? 'shared'; // 'shared' | 'dedicated'
+        $dbHost   = trim($_POST['db_host'] ?? 'localhost');
+        $dbPort   = (int)($_POST['db_port'] ?? 3306);
         $dbName   = trim($_POST['db_name'] ?? 'proets');
-        $dbUser   = trim($_POST['db_user'] ?? 'proets_user');
+        $dbUser   = trim($_POST['db_user'] ?? '');
         $dbPass   = $_POST['db_pass'] ?? '';
-        $dbPass2  = $_POST['db_pass2'] ?? '';
 
-        if (empty($dbName))       $errors[] = 'Nome database obbligatorio.';
-        if (empty($dbUser))       $errors[] = 'Nome utente database obbligatorio.';
-        if (strlen($dbPass) < 8)  $errors[] = 'Password utente DB: minimo 8 caratteri.';
-        if ($dbPass !== $dbPass2) $errors[] = 'Le password dell\'utente DB non coincidono.';
-        if (!preg_match('/^\w+$/', $dbName))  $errors[] = 'Nome database: solo lettere, numeri e underscore.';
-        if (!preg_match('/^\w+$/', $dbUser))  $errors[] = 'Utente database: solo lettere, numeri e underscore.';
+        if (empty($dbName)) $errors[] = 'Nome database obbligatorio.';
+        if (empty($dbUser)) $errors[] = 'Nome utente database obbligatorio.';
+        if (empty($dbPass)) $errors[] = 'Password utente database obbligatoria.';
+
+        if ($mode === 'dedicated') {
+            /* In modalità dedicated i campi hanno suffisso _d */
+            $dbHost   = trim($_POST['root_host_d'] ?? 'localhost');
+            $dbPort   = (int)($_POST['root_port_d'] ?? 3306);
+            $dbName   = trim($_POST['db_name_d'] ?? 'proets');
+            $dbUser   = trim($_POST['db_user_d'] ?? '');
+            $dbPass   = $_POST['db_pass_d'] ?? '';
+            $rootUser = trim($_POST['root_user'] ?? 'root');
+            $rootPass = $_POST['root_pass'] ?? '';
+            $dbPass2  = $_POST['db_pass2'] ?? '';
+            if (strlen($dbPass) < 8)  $errors[] = 'Password utente DB: minimo 8 caratteri.';
+            if ($dbPass !== $dbPass2) $errors[] = 'Le password dell\'utente DB non coincidono.';
+            if (!preg_match('/^\w+$/', $dbName)) $errors[] = 'Nome database: solo lettere, numeri e underscore.';
+            if (!preg_match('/^\w+$/', $dbUser)) $errors[] = 'Utente database: solo lettere, numeri e underscore.';
+        }
 
         if (empty($errors)) {
             try {
-                $dsn = "mysql:host={$rootHost};port={$rootPort};charset=utf8mb4";
-                $pdo = new PDO($dsn, $rootUser, $rootPass, [
-                    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
-                ]);
+                if ($mode === 'dedicated') {
+                    /* Connessione root per creare DB e utente */
+                    $dsn = "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4";
+                    $pdo = new PDO($dsn, $rootUser, $rootPass, [
+                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+                    ]);
+                    $ver = $pdo->query("SELECT VERSION()")->fetchColumn();
 
-                /* Versione MariaDB/MySQL */
-                $ver = $pdo->query("SELECT VERSION()")->fetchColumn();
+                    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 
-                /* Crea database */
-                $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-
-                /* Crea o aggiorna utente applicazione */
-                $userExists = (int)$pdo->query(
-                    "SELECT COUNT(*) FROM mysql.user WHERE User=" . $pdo->quote($dbUser) . " AND Host='localhost'"
-                )->fetchColumn();
-
-                if ($userExists) {
-                    $pdo->exec("ALTER USER `{$dbUser}`@`localhost` IDENTIFIED BY " . $pdo->quote($dbPass));
+                    $userExists = (int)$pdo->query(
+                        "SELECT COUNT(*) FROM mysql.user WHERE User=" . $pdo->quote($dbUser) . " AND Host='localhost'"
+                    )->fetchColumn();
+                    if ($userExists) {
+                        $pdo->exec("ALTER USER `{$dbUser}`@`localhost` IDENTIFIED BY " . $pdo->quote($dbPass));
+                    } else {
+                        $pdo->exec("CREATE USER `{$dbUser}`@`localhost` IDENTIFIED BY " . $pdo->quote($dbPass));
+                    }
+                    $pdo->exec("GRANT ALL PRIVILEGES ON `{$dbName}`.* TO `{$dbUser}`@`localhost`");
+                    $pdo->exec("FLUSH PRIVILEGES");
                 } else {
-                    $pdo->exec("CREATE USER `{$dbUser}`@`localhost` IDENTIFIED BY " . $pdo->quote($dbPass));
+                    /* Hosting condiviso: verifica solo la connessione con le credenziali fornite */
+                    $dsn = "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4";
+                    $pdo = new PDO($dsn, $dbUser, $dbPass, [
+                        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+                    ]);
+                    $ver = $pdo->query("SELECT VERSION()")->fetchColumn();
                 }
-                $pdo->exec("GRANT ALL PRIVILEGES ON `{$dbName}`.* TO `{$dbUser}`@`localhost`");
-                $pdo->exec("FLUSH PRIVILEGES");
 
-                /* Salva in sessione (NO password root in sessione) */
                 $_SESSION['iData']['db'] = [
-                    'host' => $rootHost,
-                    'port' => $rootPort,
+                    'host' => $dbHost,
+                    'port' => $dbPort,
                     'name' => $dbName,
                     'user' => $dbUser,
                     'pass' => $dbPass,
                     'ver'  => $ver,
+                    'mode' => $mode,
                 ];
                 $_SESSION['iStep'] = 3;
                 header('Location: ' . $_SERVER['PHP_SELF']); exit;
 
             } catch (PDOException $e) {
-                $errors[] = 'Errore connessione root: ' . $e->getMessage();
-                $errors[] = 'Verifica che l\'utente root abbia i permessi di GRANT e che il firewall permetta la connessione.';
+                if ($mode === 'dedicated') {
+                    $errors[] = 'Errore connessione root: ' . $e->getMessage();
+                    $errors[] = 'Verifica che l\'utente root abbia i permessi di GRANT e che il firewall permetta la connessione.';
+                } else {
+                    $errors[] = 'Connessione al database non riuscita: ' . $e->getMessage();
+                    $errors[] = 'Verifica host, nome database, utente e password forniti dal tuo hosting.';
+                }
             }
         }
         $step = 2;
@@ -563,88 +595,146 @@ $iData = $_SESSION['iData'] ?? [];
        ════════════════════════════════════════ */ elseif ($step === 2): ?>
 
     <h5 class="mb-1 fw-bold"><i class="bi bi-database me-2 text-primary"></i>Configurazione Database</h5>
-    <p class="text-muted small mb-3">
-      Inserisci le credenziali <strong>root</strong> di MariaDB/MySQL per creare il database e
-      l'utente dedicato all'applicazione. La password root <em>non viene salvata</em> in nessun file.
-    </p>
 
     <form method="post" id="form-db">
       <input type="hidden" name="from_step" value="2">
 
-      <div class="section-sep"><i class="bi bi-person-lock"></i>Credenziali Root MariaDB/MySQL</div>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Host <span class="text-danger">*</span></label>
-          <input type="text" name="root_host" class="form-control" value="<?= e($_POST['root_host'] ?? 'localhost') ?>" required>
-        </div>
-        <div class="col-md-2">
-          <label class="form-label fw-semibold">Porta</label>
-          <input type="number" name="root_port" class="form-control" value="<?= e($_POST['root_port'] ?? '3306') ?>">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label fw-semibold">Utente root <span class="text-danger">*</span></label>
-          <input type="text" name="root_user" class="form-control" value="<?= e($_POST['root_user'] ?? 'root') ?>" required autocomplete="username">
-        </div>
+      <!-- Selezione modalità -->
+      <div class="row g-3 mb-3">
         <div class="col-12">
-          <label class="form-label fw-semibold">Password root</label>
-          <div class="input-group">
-            <input type="password" name="root_pass" id="root_pass" class="form-control" autocomplete="current-password" placeholder="Password root MariaDB">
-            <button class="btn btn-outline-secondary" type="button" onclick="togglePw('root_pass',this)"><i class="bi bi-eye"></i></button>
+          <label class="form-label fw-semibold">Tipo di ambiente <span class="text-danger">*</span></label>
+          <div class="d-flex gap-3 flex-wrap">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="install_mode" id="mode_shared" value="shared"
+                <?= (($_POST['install_mode'] ?? 'shared') === 'shared') ? 'checked' : '' ?>
+                onchange="toggleInstallMode('shared')">
+              <label class="form-check-label" for="mode_shared">
+                <i class="bi bi-cloud me-1 text-primary"></i>
+                <strong>Hosting condiviso</strong>
+                <span class="text-muted small d-block">cPanel, Plesk, Aruba, Register.it ecc.<br>DB e utente già creati dal pannello.</span>
+              </label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="install_mode" id="mode_dedicated" value="dedicated"
+                <?= (($_POST['install_mode'] ?? '') === 'dedicated') ? 'checked' : '' ?>
+                onchange="toggleInstallMode('dedicated')">
+              <label class="form-check-label" for="mode_dedicated">
+                <i class="bi bi-server me-1 text-secondary"></i>
+                <strong>Server dedicato / VPS / locale</strong>
+                <span class="text-muted small d-block">Hai accesso root MySQL.<br>L'installer crea DB e utente automaticamente.</span>
+              </label>
+            </div>
           </div>
-          <div class="form-text">Se root non ha password lascia vuoto (solo ambienti locali).</div>
         </div>
       </div>
 
-      <div class="section-sep mt-4"><i class="bi bi-database-add"></i>Nuovo Database Applicazione</div>
-      <div class="row g-3">
-        <div class="col-md-6">
-          <label class="form-label fw-semibold">Nome database <span class="text-danger">*</span></label>
-          <input type="text" name="db_name" class="form-control" value="<?= e($_POST['db_name'] ?? 'proets') ?>"
-            required pattern="\w+" title="Solo lettere, numeri e underscore" placeholder="proets">
-          <div class="form-text">Verrà creato automaticamente se non esiste.</div>
+      <!-- Sezione hosting condiviso -->
+      <div id="section-shared">
+        <div class="alert alert-info py-2 small mb-3">
+          <i class="bi bi-info-circle me-1"></i>
+          Crea prima il database e l'utente dal pannello del tuo hosting (cPanel → Database MySQL,
+          Plesk → Database), poi inserisci qui le credenziali che ti sono state fornite.
+        </div>
+        <div class="section-sep"><i class="bi bi-database"></i>Credenziali Database (fornite dal hosting)</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Host database <span class="text-danger">*</span></label>
+            <input type="text" name="db_host" class="form-control" value="<?= e($_POST['db_host'] ?? 'localhost') ?>">
+            <div class="form-text">Di solito <code>localhost</code>. Il tuo hosting te lo indica.</div>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Porta</label>
+            <input type="number" name="db_port" class="form-control" value="<?= e($_POST['db_port'] ?? '3306') ?>">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Nome database <span class="text-danger">*</span></label>
+            <input type="text" name="db_name" class="form-control" value="<?= e($_POST['db_name'] ?? '') ?>" placeholder="utente_proets">
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Utente database <span class="text-danger">*</span></label>
+            <input type="text" name="db_user" class="form-control" value="<?= e($_POST['db_user'] ?? '') ?>" placeholder="utente_proets" autocomplete="username">
+          </div>
+          <div class="col-md-7">
+            <label class="form-label fw-semibold">Password database <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="password" name="db_pass" id="db_pass" class="form-control" autocomplete="current-password" placeholder="Password del database">
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePw('db_pass',this)"><i class="bi bi-eye"></i></button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="section-sep mt-4"><i class="bi bi-person-badge"></i>Nuovo Utente Database (per l'applicazione)</div>
-      <div class="alert alert-info py-2 small mb-3">
-        <i class="bi bi-info-circle me-1"></i>
-        Verrà creato un utente MariaDB dedicato all'applicazione con permessi
-        <code>ALL PRIVILEGES</code> solo sul database sopra indicato.
-        <strong>Non usare root come utente applicazione.</strong>
-      </div>
-      <div class="row g-3">
-        <div class="col-md-5">
-          <label class="form-label fw-semibold">Username utente DB <span class="text-danger">*</span></label>
-          <input type="text" name="db_user" class="form-control" value="<?= e($_POST['db_user'] ?? 'proets_user') ?>"
-            required pattern="\w+" placeholder="proets_user">
+      <!-- Sezione server dedicato / VPS -->
+      <div id="section-dedicated" style="display:none">
+        <div class="alert alert-secondary py-2 small mb-3">
+          <i class="bi bi-person-lock me-1"></i>
+          Inserisci le credenziali <strong>root</strong> di MariaDB/MySQL.
+          L'installer creerà database e utente dedicato. La password root <em>non viene salvata</em>.
         </div>
-        <div class="col-md-7">
-          <label class="form-label fw-semibold">Password utente DB <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <input type="password" name="db_pass" id="db_pass" class="form-control" required minlength="8"
-              autocomplete="new-password" oninput="checkPwStrength(this,'db-bar','db-lbl')" placeholder="Minimo 8 caratteri">
-            <button class="btn btn-outline-secondary" type="button" onclick="togglePw('db_pass',this)"><i class="bi bi-eye"></i></button>
+        <div class="section-sep"><i class="bi bi-person-lock"></i>Credenziali Root MariaDB/MySQL</div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Host <span class="text-danger">*</span></label>
+            <input type="text" name="root_host_d" class="form-control" value="<?= e($_POST['root_host_d'] ?? 'localhost') ?>">
           </div>
-          <div class="pw-bar mt-1" id="db-bar" style="width:0;background:#ef4444"></div>
-          <div class="form-text" id="db-lbl"></div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Porta</label>
+            <input type="number" name="root_port_d" class="form-control" value="<?= e($_POST['root_port_d'] ?? '3306') ?>">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Utente root</label>
+            <input type="text" name="root_user" class="form-control" value="<?= e($_POST['root_user'] ?? 'root') ?>" autocomplete="username">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Password root</label>
+            <div class="input-group">
+              <input type="password" name="root_pass" id="root_pass" class="form-control" autocomplete="current-password" placeholder="Password root MariaDB">
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePw('root_pass',this)"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="form-text">Se root non ha password lascia vuoto (solo ambienti locali).</div>
+          </div>
         </div>
-        <div class="col-md-7">
-          <label class="form-label fw-semibold">Conferma password DB <span class="text-danger">*</span></label>
-          <div class="input-group">
-            <input type="password" name="db_pass2" id="db_pass2" class="form-control" required minlength="8"
-              autocomplete="new-password" oninput="checkMatch('db_pass','db_pass2','match-db')">
-            <button class="btn btn-outline-secondary" type="button" onclick="togglePw('db_pass2',this)"><i class="bi bi-eye"></i></button>
+        <div class="section-sep mt-4"><i class="bi bi-database-add"></i>Nuovo Database e Utente da creare</div>
+        <div class="row g-3">
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Nome database <span class="text-danger">*</span></label>
+            <input type="text" name="db_name_d" class="form-control" value="<?= e($_POST['db_name_d'] ?? 'proets') ?>"
+              pattern="\w+" title="Solo lettere, numeri e underscore" placeholder="proets">
+            <div class="form-text">Verrà creato automaticamente.</div>
           </div>
-          <div class="form-text" id="match-db"></div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Username utente DB <span class="text-danger">*</span></label>
+            <input type="text" name="db_user_d" class="form-control" value="<?= e($_POST['db_user_d'] ?? 'proets_user') ?>"
+              pattern="\w+" placeholder="proets_user">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Password utente DB <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="password" name="db_pass_d" id="db_pass_d" class="form-control" minlength="8"
+                autocomplete="new-password" oninput="checkPwStrength(this,'db-bar','db-lbl')" placeholder="Minimo 8 caratteri">
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePw('db_pass_d',this)"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="pw-bar mt-1" id="db-bar" style="width:0;background:#ef4444"></div>
+            <div class="form-text" id="db-lbl"></div>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Conferma password DB <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="password" name="db_pass2" id="db_pass2" class="form-control" minlength="8"
+                autocomplete="new-password" oninput="checkMatch('db_pass_d','db_pass2','match-db')">
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePw('db_pass2',this)"><i class="bi bi-eye"></i></button>
+            </div>
+            <div class="form-text" id="match-db"></div>
+          </div>
         </div>
       </div>
 
       <div class="d-flex gap-2 mt-4">
-        <a href="<?= $_SERVER['PHP_SELF'] ?>?step=1" class="btn btn-outline-secondary" onclick="$_SESSION=[]">
+        <a href="<?= $_SERVER['PHP_SELF'] ?>?step=1" class="btn btn-outline-secondary">
           <i class="bi bi-arrow-left me-1"></i>Indietro
         </a>
-        <button type="submit" class="btn btn-primary px-4">
-          <i class="bi bi-plug me-2"></i>Crea Database e Utente
+        <button type="submit" class="btn btn-primary px-4" id="btn-db-submit">
+          <i class="bi bi-plug me-2"></i><span id="btn-db-label">Verifica Connessione</span>
         </button>
       </div>
     </form>
@@ -894,6 +984,27 @@ sudo systemctl reload apache2</pre>
 </div><!-- /inst-wrap -->
 
 <script>
+/* Toggle modalità installazione */
+function toggleInstallMode(mode) {
+  const shared    = document.getElementById('section-shared');
+  const dedicated = document.getElementById('section-dedicated');
+  const btnLabel  = document.getElementById('btn-db-label');
+  if (mode === 'shared') {
+    shared.style.display    = '';
+    dedicated.style.display = 'none';
+    btnLabel.textContent    = 'Verifica Connessione';
+  } else {
+    shared.style.display    = 'none';
+    dedicated.style.display = '';
+    btnLabel.textContent    = 'Crea Database e Utente';
+  }
+}
+// Inizializza stato corretto al caricamento
+document.addEventListener('DOMContentLoaded', function() {
+  const checked = document.querySelector('input[name="install_mode"]:checked');
+  if (checked) toggleInstallMode(checked.value);
+});
+
 /* Toggle visibilità password */
 function togglePw(id, btn) {
   const inp = document.getElementById(id);

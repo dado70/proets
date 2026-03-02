@@ -1,27 +1,6 @@
 Options -Indexes -MultiViews
-RewriteEngine On
 
-# Blocca accesso a file sensibili
-<FilesMatch "\.(sql|log|lock|json|md|env|ini|cfg)$">
-    Order allow,deny
-    Deny from all
+# Blocca accesso diretto a file sensibili
+<FilesMatch "\.(sql|log|lock|env|ini|cfg)$">
+    Require all denied
 </FilesMatch>
-
-# Proteggi cartelle
-<DirectoryMatch "^.*(config|src|templates|logs|backups|install)">
-    Order allow,deny
-    Deny from all
-</DirectoryMatch>
-
-# Redirect tutto al public/
-RewriteCond %{REQUEST_URI} !^/public/
-RewriteCond %{REQUEST_URI} !^/install/
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^(.*)$ /public/$1 [L,QSA]
-
-# Security headers
-Header always set X-Content-Type-Options "nosniff"
-Header always set X-Frame-Options "SAMEORIGIN"
-Header always set X-XSS-Protection "1; mode=block"
-Header always set Referrer-Policy "strict-origin-when-cross-origin"

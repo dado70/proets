@@ -1,6 +1,10 @@
 <?php
 use ProETS\Core\Auth;
+$_basePath   = \ProETS\Core\Config::get('app.base_path', '');
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if ($_basePath !== '' && str_starts_with($currentPath, $_basePath)) {
+    $currentPath = substr($currentPath, strlen($_basePath)) ?: '/';
+}
 $isActive = fn(string $prefix) => str_starts_with($currentPath, $prefix) ? 'active' : '';
 
 $user    = Auth::user();

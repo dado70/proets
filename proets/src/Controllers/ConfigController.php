@@ -83,18 +83,21 @@ class ConfigController extends Controller
     public function email(array $params = []): void
     {
         $this->requireAdmin();
-        $cid = $this->companyId();
-        $error = null;
+        $cid     = $this->companyId();
+        $company = $this->company();
+        $error   = null;
 
         if ($this->isPost()) {
             $this->csrfCheck();
             $settings = [
+                'smtp_enabled'   => !empty($_POST['smtp_enabled']) ? '1' : '0',
                 'smtp_host'      => $this->inputString('smtp_host'),
                 'smtp_port'      => $this->inputString('smtp_port', '587'),
                 'smtp_user'      => $this->inputString('smtp_user'),
                 'smtp_secure'    => $this->inputString('smtp_secure', 'tls'),
                 'smtp_from'      => $this->inputString('smtp_from'),
                 'smtp_from_name' => $this->inputString('smtp_from_name', 'ProETS'),
+                'smtp_reply_to'  => $this->inputString('smtp_reply_to'),
             ];
             if (!empty($_POST['smtp_pass'])) {
                 $settings['smtp_pass'] = $_POST['smtp_pass'];
@@ -115,13 +118,20 @@ class ConfigController extends Controller
         $rows = Database::fetchAll("SELECT chiave, valore FROM app_settings WHERE gruppo = 'email' AND company_id IS NULL");
         foreach ($rows as $r) $smtpSettings[$r['chiave']] = $r['valore'];
 
-        $esercizio = (int)($this->company()['esercizio_corrente'] ?? date('Y'));
+        $templates = Database::fetchAll(
+            "SELECT * FROM email_templates WHERE company_id IS NULL OR company_id = ? ORDER BY nome",
+            [$cid]
+        );
+
+        $esercizio = (int)($company['esercizio_corrente'] ?? date('Y'));
         View::render('config/email', [
-            'pageTitle'    => 'Configurazione Email SMTP',
+            'pageTitle'      => 'Configurazione Email SMTP',
             'esercizioAttivo' => $esercizio,
-            'settings'     => $smtpSettings,
-            'csrf'         => Session::csrf(),
-            'error'        => $error,
+            'company'        => $company,
+            'settings'       => $smtpSettings,
+            'templates'      => $templates,
+            'csrf'           => Session::csrf(),
+            'error'          => $error,
         ]);
     }
 
