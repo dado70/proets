@@ -53,9 +53,22 @@ git clone https://github.com/dado70/proets.git
 
 ---
 
-### 2. Posiziona i file sul server
+### 2. Installa le dipendenze PHP (Composer)
 
-Copia **tutto il contenuto** della cartella scaricata nella root del web server (o nella sottocartella desiderata).
+Le librerie PHP richieste (TCPDF, PHPMailer, League/CSV, Guzzle) si installano con Composer:
+
+```bash
+cd /percorso/del/sito
+composer install --no-dev --optimize-autoloader
+```
+
+> **Senza accesso SSH?** Scarica il pacchetto di release da [GitHub Releases](https://github.com/dado70/proets/releases): include già la cartella `vendor/` pronta all'uso.
+
+---
+
+### 3. Posiziona i file sul server
+
+Copia **tutto il contenuto** della cartella (inclusa `vendor/`) nella root del web server o nella sottocartella desiderata.
 
 | Scenario | Dove caricare i file | URL risultante |
 |---|---|---|
@@ -71,11 +84,12 @@ index.php
 src/
 templates/
 install/
+vendor/          ← obbligatorio (da composer install o dal pacchetto release)
 ```
 
 ---
 
-### 3. Prepara il database
+### 4. Prepara il database
 
 #### Hosting condiviso / cPanel / Plesk
 Crea database e utente dal pannello di controllo del tuo hosting, quindi annota:
@@ -89,7 +103,7 @@ L'installer crea database e utente automaticamente — ti servirà solo la passw
 
 ---
 
-### 4. Esegui l'installer web
+### 5. Esegui l'installer web
 
 Apri nel browser: `https://tuo-dominio/install.php`
 

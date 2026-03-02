@@ -58,6 +58,7 @@ function checkRequirements(): array {
         ['name'=>'uploads/ scrivibile',           'req'=>true,  'ok'=>is_writable($p.'/uploads'),      'val'=>is_writable($p.'/uploads')      ?'OK':'Non scrivibile'],
         ['name'=>'logs/ scrivibile',              'req'=>true,  'ok'=>is_writable($p.'/logs'),         'val'=>is_writable($p.'/logs')         ?'OK':'Non scrivibile'],
         ['name'=>'backups/ scrivibile',           'req'=>true,  'ok'=>is_writable($p.'/backups'),      'val'=>is_writable($p.'/backups')      ?'OK':'Non scrivibile'],
+        ['name'=>'Dipendenze Composer (vendor/)',  'req'=>true,  'ok'=>file_exists($p.'/vendor/autoload.php'), 'val'=>file_exists($p.'/vendor/autoload.php') ? 'OK' : 'Mancante', 'note'=>'Esegui via SSH: <code>composer install --no-dev --optimize-autoloader</code>'],
     ];
     return $checks;
 }
@@ -564,7 +565,12 @@ $iData = $_SESSION['iData'] ?? [];
       <div class="req-icon <?= $cls ?>">
         <i class="bi bi-<?= $c['ok'] ? 'check-lg' : ($c['req'] ? 'x-lg' : 'exclamation-lg') ?>"></i>
       </div>
-      <div class="flex-grow-1"><?= e($c['name']) ?></div>
+      <div class="flex-grow-1">
+        <?= e($c['name']) ?>
+        <?php if (!$c['ok'] && isset($c['note'])): ?>
+          <div class="small text-danger mt-1"><?= $c['note'] /* contiene HTML trusted (code tag) */ ?></div>
+        <?php endif; ?>
+      </div>
       <div class="text-muted small"><?= e($c['val']) ?></div>
     </div>
     <?php endforeach; ?>
