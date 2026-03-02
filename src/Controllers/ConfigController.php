@@ -138,36 +138,95 @@ class ConfigController extends Controller
     public function utenti(array $params = []): void
     {
         $this->requireAdmin();
-        $cid = $this->companyId();
+        $cid         = $this->companyId();
+        $currentUser = \ProETS\Core\Auth::user();
+        $isSuperadmin = ($currentUser['ruolo'] ?? '') === 'superadmin';
 
         if ($this->isPost()) {
             $this->csrfCheck();
             $action = $this->inputString('action');
 
             if ($action === 'crea') {
-                $username = $this->inputString('username');
-                $email    = $this->inputString('email');
-                $pass     = $this->input('password', '');
-                $ruolo    = $this->inputString('ruolo', 'operator');
-                $nome     = $this->inputString('nome');
-                $cognome  = $this->inputString('cognome');
+                $username     = $this->inputString('username');
+                $email        = $this->inputString('email');
+                $pass         = $this->input('password', '');
+                $ruolo        = $this->inputString('ruolo', 'operator');
+                $nomeCompleto = $this->inputString('nome_completo');
+                // Separa nome e cognome (prima parola = nome, resto = cognome)
+                $parts   = preg_split('/\s+/', trim($nomeCompleto), 2);
+                $nome    = $parts[0] ?? '';
+                $cognome = $parts[1] ?? '';
 
-                if (strlen($pass) < 8) { $this->flash('error', 'Password troppo corta.'); }
-                elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $this->flash('error', 'Email non valida.'); }
-                else {
-                    $hash = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
-                    $uid  = Database::insert('users', compact('username','email','nome','cognome','ruolo') + ['password'=>$hash,'attivo'=>1,'email_verificata'=>1,'gdpr_consenso'=>1,'gdpr_data'=>date('Y-m-d H:i:s')]);
-                    Database::insert('user_companies', ['user_id'=>$uid,'company_id'=>$cid,'ruolo_azienda'=>$ruolo]);
-                    $this->flash('success', 'Utente creato.');
+                // Admin può creare solo operator e readonly, non admin/superadmin
+                if (!$isSuperadmin && !in_array($ruolo, ['operator', 'readonly'])) {
+                    $ruolo = 'operator';
                 }
-            } elseif ($action === 'disabilita') {
-                Database::update('users', ['attivo' => 0], 'id = ?', [$this->inputInt('user_id')]);
-                $this->flash('success', 'Utente disabilitato.');
+                // Nessuno può creare superadmin da questa pagina
+                if ($ruolo === 'superadmin') {
+                    $ruolo = 'admin';
+                }
+
+                if (strlen((string)$pass) < 8) {
+                    $this->flash('error', 'Password troppo corta (minimo 8 caratteri).');
+                } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $this->flash('error', 'Email non valida.');
+                } else {
+                    $existing = Database::fetchColumn(
+                        "SELECT COUNT(*) FROM users WHERE username = ? OR email = ?",
+                        [$username, $email]
+                    );
+                    if ($existing) {
+                        $this->flash('error', 'Username o email già in uso.');
+                    } else {
+                        $hash = password_hash((string)$pass, PASSWORD_BCRYPT, ['cost' => 12]);
+                        $uid  = Database::insert('users', [
+                            'username'        => $username,
+                            'email'           => $email,
+                            'password'        => $hash,
+                            'nome'            => $nome,
+                            'cognome'         => $cognome,
+                            'ruolo'           => $ruolo,
+                            'attivo'          => 1,
+                            'email_verificata'=> 1,
+                            'gdpr_consenso'   => 1,
+                            'gdpr_data'       => date('Y-m-d H:i:s'),
+                        ]);
+                        Database::insert('user_companies', [
+                            'user_id'       => $uid,
+                            'company_id'    => $cid,
+                            'ruolo_azienda' => $ruolo,
+                        ]);
+                        $this->flash('success', 'Utente creato.');
+                    }
+                }
+            } elseif ($action === 'toggle') {
+                $uid = $this->inputInt('user_id');
+                if ($uid !== (int)($currentUser['id'] ?? 0)) {
+                    $u = Database::fetchOne("SELECT attivo FROM users WHERE id = ?", [$uid]);
+                    if ($u) {
+                        Database::update('users', ['attivo' => $u['attivo'] ? 0 : 1], 'id = ?', [$uid]);
+                        $this->flash('success', $u['attivo'] ? 'Utente disabilitato.' : 'Utente abilitato.');
+                    }
+                }
+            } elseif ($action === 'reset_password') {
+                $uid = $this->inputInt('user_id');
+                if ($uid && $uid !== (int)($currentUser['id'] ?? 0)) {
+                    $newPass = bin2hex(random_bytes(6));
+                    $hash    = password_hash($newPass, PASSWORD_BCRYPT, ['cost' => 12]);
+                    Database::update('users', [
+                        'password'        => $hash,
+                        'tentativi_login' => 0,
+                        'bloccato_fino'   => null,
+                    ], 'id = ?', [$uid]);
+                    $this->flash('success', "Password reimpostata. Nuova password temporanea: <strong>{$newPass}</strong> — comunicala all'utente.");
+                }
             }
+            $this->redirect('/configurazione/utenti');
         }
 
         $utenti = Database::fetchAll(
-            "SELECT u.*, uc.ruolo_azienda FROM users u
+            "SELECT u.*, CONCAT(u.nome, ' ', u.cognome) AS nome_completo, uc.ruolo_azienda
+             FROM users u
              LEFT JOIN user_companies uc ON uc.user_id = u.id AND uc.company_id = ?
              ORDER BY u.cognome, u.nome",
             [$cid]
@@ -175,10 +234,11 @@ class ConfigController extends Controller
 
         $esercizio = (int)($this->company()['esercizio_corrente'] ?? date('Y'));
         View::render('config/utenti', [
-            'pageTitle'    => 'Gestione Utenti',
+            'pageTitle'       => 'Gestione Utenti',
             'esercizioAttivo' => $esercizio,
-            'utenti'       => $utenti,
-            'csrf'         => Session::csrf(),
+            'utenti'          => $utenti,
+            'csrf'            => Session::csrf(),
+            'currentUser'     => $currentUser,
         ]);
     }
 

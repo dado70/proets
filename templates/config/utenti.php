@@ -112,11 +112,15 @@ $roleLabel = ['superadmin'=>'Super Admin','admin'=>'Amministratore','operator'=>
             <select name="ruolo" class="form-select" required>
               <option value="readonly">Solo lettura</option>
               <option value="operator">Operatore</option>
+              <?php if (($currentUser['ruolo'] ?? '') === 'superadmin'): ?>
               <option value="admin" selected>Amministratore</option>
-              <?php if ($currentUser['ruolo'] === 'superadmin'): ?>
-              <option value="superadmin">Super Admin</option>
+              <?php else: ?>
+              <option value="operator" selected>Operatore</option>
               <?php endif; ?>
             </select>
+            <?php if (($currentUser['ruolo'] ?? '') !== 'superadmin'): ?>
+            <div class="form-text">Gli amministratori si creano dal <a href="/superadmin/utenti">Pannello Superadmin</a>.</div>
+            <?php endif; ?>
           </div>
           <div class="col-12">
             <div class="form-text">L'utente dovrà cambiare la password al primo accesso.</div>

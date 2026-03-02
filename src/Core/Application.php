@@ -11,6 +11,7 @@ use ProETS\Controllers\BudgetController;
 use ProETS\Controllers\SociController;
 use ProETS\Controllers\BackupController;
 use ProETS\Controllers\ConfigController;
+use ProETS\Controllers\SuperadminController;
 
 class Application
 {
@@ -81,6 +82,11 @@ class Application
         Router::post('/backup/ripristina',   [BackupController::class, 'ripristina']);
         Router::get('/backup/download/:id',  [BackupController::class, 'download']);
         Router::post('/backup/elimina/:id',  [BackupController::class, 'elimina']);
+
+        // Superadmin
+        Router::any('/superadmin',                          [SuperadminController::class, 'index']);
+        Router::post('/superadmin/aziende/:id/toggle',      [SuperadminController::class, 'toggleAzienda']);
+        Router::any('/superadmin/utenti',                   [SuperadminController::class, 'utenti']);
 
         // Configurazione
         Router::any('/configurazione',       [ConfigController::class, 'index']);

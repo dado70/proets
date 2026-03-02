@@ -146,6 +146,21 @@ $esercizio = $company['esercizio_corrente'] ?? date('Y');
       </a>
     </li>
     <?php endif; ?>
+
+    <!-- Pannello Superadmin -->
+    <?php if (($user['ruolo'] ?? '') === 'superadmin'): ?>
+    <div class="nav-section" style="color:#f87171">Superadmin</div>
+    <li class="nav-item">
+      <a href="/superadmin" class="nav-link <?= $isActive('/superadmin') ?>" style="color:#fca5a5">
+        <i class="bi bi-shield-lock"></i> Gestione Associazioni
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/superadmin/utenti" class="nav-link <?= $isActive('/superadmin/utenti') ?>" style="color:#fca5a5">
+        <i class="bi bi-people-fill"></i> Tutti gli Utenti
+      </a>
+    </li>
+    <?php endif; ?>
   </ul>
 
   <div class="sidebar-footer">
