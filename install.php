@@ -173,15 +173,8 @@ function rootHtaccess(): string {
 # Richiede mod_rewrite abilitato in Apache (AllowOverride All)
 Options -Indexes -MultiViews
 
-# Blocca accesso diretto a directory e file sensibili
-<IfModule mod_authz_core.c>
-    <DirectoryMatch "^.*(src|templates|config|install|logs|backups|vendor)">
-        Require all denied
-    </DirectoryMatch>
-</IfModule>
-
 # Blocca file sensibili per estensione
-<FilesMatch "\.(sql|log|lock|env|ini|cfg|md|json|lock)$">
+<FilesMatch "\.(sql|log|lock|env|ini|cfg)$">
     Require all denied
 </FilesMatch>
 
