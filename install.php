@@ -15,6 +15,12 @@ define('SQL_SCHEMA',   PROETS_ROOT . '/install/database.sql');
 define('CONFIG_DIR',   PROETS_ROOT . '/config');
 define('CONFIG_FILE',  PROETS_ROOT . '/config/config.php');
 define('MIN_PHP',      '8.1.0');
+define('VERSION_FILE', PROETS_ROOT . '/VERSION');
+
+/** Legge la versione dal file VERSION */
+function readVersion(): string {
+    return file_exists(VERSION_FILE) ? trim((string)file_get_contents(VERSION_FILE)) : '1.0.0';
+}
 
 /* ── Sicurezza: blocca se già installato ──────────────────────────────── */
 if (file_exists(INSTALL_LOCK) && !isset($_GET['force'])) {
@@ -124,7 +130,7 @@ function generateConfig(array $db, string $appKey, string $appUrl): string {
         'return [',
         "    'app' => [",
         "        'name'      => 'ProETS',",
-        "        'version'   => '1.0.0',",
+        "        'version'   => " . var_export(readVersion(), true) . ',',
         "        'key'       => " . var_export($appKey, true) . ',',
         "        'debug'     => false,",
         "        'timezone'  => 'Europe/Rome',",
@@ -421,6 +427,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $log[] = ['ok'=>true, 'msg'=>"File <code>.htaccess</code> root creato"];
                     } else {
                         $log[] = ['ok'=>false, 'msg'=>"Impossibile creare .htaccess root — crealo manualmente (vedi istruzioni)"];
+                    }
+
+                    /* Registra migration baseline (evita false pendenti su nuove installazioni) */
+                    try {
+                        $pdo->prepare(
+                            "INSERT IGNORE INTO db_migrations (migration, version, description) VALUES (?, ?, ?)"
+                        )->execute(['0001_baseline', '1.0.0', 'Schema iniziale (baseline v1.0.0)']);
+                        $pdo->prepare(
+                            "INSERT IGNORE INTO db_migrations (migration, version, description) VALUES (?, ?, ?)"
+                        )->execute(['0002_superadmin_panel', '1.1.0-beta', 'Pannello superadmin multiaziendale + gestione utenti globale']);
+                        $log[] = ['ok'=>true, 'msg'=>"Migration baseline registrate in <code>db_migrations</code>"];
+                    } catch (\Throwable $me) {
+                        $log[] = ['ok'=>false, 'msg'=>"Avviso: impossibile registrare migration baseline: " . e($me->getMessage())];
                     }
 
                     /* Lock installazione */

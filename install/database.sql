@@ -553,6 +553,19 @@ INSERT INTO `email_templates` (`company_id`,`codice`,`nome`,`oggetto`,`corpo_htm
 '["nome_socio","numero_tessera","tipo_socio","data_iscrizione","anno","importo_quota","nome_associazione","email_associazione"]');
 
 -- =============================================
+-- MIGRAZIONI DB
+-- =============================================
+CREATE TABLE `db_migrations` (
+  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `migration` varchar(100) NOT NULL,
+  `version` varchar(20) NOT NULL DEFAULT '',
+  `description` varchar(255) NOT NULL DEFAULT '',
+  `applied_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_migration` (`migration`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =============================================
 -- IMPOSTAZIONI DI DEFAULT
 -- =============================================
 INSERT INTO `app_settings` (`company_id`,`chiave`,`valore`,`tipo`,`gruppo`) VALUES

@@ -24,6 +24,9 @@ $formeLegali = ['APS','ODV','ETS','ONLUS','Altro'];
     <div class="text-muted small">Gestione centralizzata di tutte le associazioni</div>
   </div>
   <div class="d-flex gap-2">
+    <a href="/superadmin/aggiornamenti" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-repeat me-1"></i>Aggiornamenti
+    </a>
     <a href="/superadmin/utenti" class="btn btn-outline-primary btn-sm">
       <i class="bi bi-people me-1"></i>Gestione Utenti
     </a>

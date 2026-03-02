@@ -12,6 +12,7 @@ use ProETS\Controllers\SociController;
 use ProETS\Controllers\BackupController;
 use ProETS\Controllers\ConfigController;
 use ProETS\Controllers\SuperadminController;
+use ProETS\Controllers\UpdateController;
 
 class Application
 {
@@ -87,6 +88,7 @@ class Application
         Router::any('/superadmin',                          [SuperadminController::class, 'index']);
         Router::post('/superadmin/aziende/:id/toggle',      [SuperadminController::class, 'toggleAzienda']);
         Router::any('/superadmin/utenti',                   [SuperadminController::class, 'utenti']);
+        Router::any('/superadmin/aggiornamenti',            [UpdateController::class, 'index']);
 
         // Configurazione
         Router::any('/configurazione',       [ConfigController::class, 'index']);
