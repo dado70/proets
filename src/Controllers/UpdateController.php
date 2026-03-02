@@ -13,7 +13,7 @@ use ProETS\Core\View;
 
 class UpdateController extends Controller
 {
-    private const GITHUB_API = 'https://api.github.com/repos/dadoscapuzzi/proets/releases/latest';
+    private const GITHUB_API = 'https://api.github.com/repos/dado70/proets/releases/latest';
     private const CACHE_FILE  = '/logs/update_check.json';
     private const CACHE_TTL   = 86400; // 24 ore
 
