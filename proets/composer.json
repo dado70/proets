@@ -1,5 +1,6 @@
 {
     "name": "proets/proets",
+    "version": "1.0.0-beta",
     "description": "Sistema Gestionale per Associazioni di Promozione Sociale (APS/ETS)",
     "type": "project",
     "license": "GPL-3.0-or-later",

@@ -1,5 +1,14 @@
 # ProETS — Gestionale per Associazioni di Promozione Sociale
 
+![Versione](https://img.shields.io/badge/versione-1.0.0--beta-orange)
+![Stato](https://img.shields.io/badge/stato-beta-yellow)
+![Licenza](https://img.shields.io/badge/licenza-GPL%20v3-blue)
+![PHP](https://img.shields.io/badge/PHP-8.1%2B-777BB4)
+
+> ⚠️ **Versione Beta** — Il software è funzionante ma in fase di test.
+> Si consiglia di non utilizzarlo in produzione con dati reali senza aver eseguito un backup preventivo.
+> Segnala bug e suggerimenti aprendo una [Issue su GitHub](https://github.com/dado70/proets/issues).
+
 Sistema gestionale open source per **APS / ODV / ETS** italiane.
 Sviluppato da [Alessandro Scapuzzi](mailto:dado70@gmail.com) — [www.proets.it](https://www.proets.it)
 Licenza: **GNU GPL v3**
